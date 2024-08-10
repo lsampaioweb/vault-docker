@@ -1,0 +1,6 @@
+*.crt
+*.key
+*.log
+
+data/*
+!data/.keep

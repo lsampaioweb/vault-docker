@@ -1,0 +1,100 @@
+version: "3.9"
+
+# Define external networks
+networks:
+  reverse-proxy:
+    external: true
+
+services:
+  vault:
+    # Image for the Vault service
+    image: "hashicorp/vault:1.17.1"
+
+    # Name of the container
+    container_name: "vault"
+
+    # Restart policy for the container
+    restart: "unless-stopped"
+
+    volumes:
+      # Adjust the date and time of the container
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+
+      # Files and folders for the container
+      - "./certificates/:/vault/certificates/"
+      - "./config:/vault/config:ro"
+      - "./data/:/vault/data"
+      - "./logs/:/vault/logs"
+      - "./policies:/vault/policies:ro"
+
+    # Uncomment and configure port mapping if needed
+    # ports:
+    # - "8200:8200"
+
+    environment:
+      # HTTP (Uncomment these lines for HTTP)
+      # - "VAULT_ADDR=http://127.0.0.1:8200"
+
+      # HTTPS configuration
+      # Path to the CA certificate
+      - "VAULT_CACERT=/vault/certificates/ca.lan.homelab.crt"
+      # Address of the Vault server
+      - "VAULT_ADDR=https://vault:8200"
+
+    cap_add:
+      # Add capability to lock memory
+      - "IPC_LOCK"
+
+    # Command to start Vault with the specified config
+    entrypoint: "vault server -config=/vault/config/vault.hcl"
+
+    labels:
+      # Enable Traefik for this service
+      - "traefik.enable=true"
+
+      # Traefik entrypoint for HTTPS
+      - "traefik.http.routers.vault.entrypoints=websecure"
+
+      # Enable TLS for Traefik router
+      - "traefik.http.routers.vault.tls=true"
+
+      # Routing rule based on host
+      - "traefik.http.routers.vault.rule=Host(`edge-vault.lan.homelab`)"
+
+      # Middlewares applied to Traefik router
+      - "traefik.http.routers.vault.middlewares=headers-rate-limit@file,headers-inFlightReq@file,headers-security@file"
+
+      # HTTP (Uncomment these lines for HTTP)
+      # - "traefik.http.services.vault.loadbalancer.server.scheme=http"
+
+      # HTTPS configuration
+      # Set scheme to HTTPS for Traefik service
+      - "traefik.http.services.vault.loadbalancer.server.scheme=https"
+
+      # Use the specified transport configuration for Traefik service
+      - "traefik.http.services.vault.loadbalancer.serversTransport=tls-vault@file"
+
+    networks:
+      # Connect to the external reverse-proxy network
+      - "reverse-proxy"
+
+    healthcheck:
+      # HTTP (Uncomment these lines for HTTP)
+      # test: ["CMD", "wget", "--no-check-certificate", "--quiet", "--spider", "http://127.0.0.1:8200/v1/sys/health?standbyok=true&sealedcode=200"]
+
+      # HTTPS configuration
+      # Health check command for HTTPS
+      test: ["CMD", "wget", "--no-check-certificate", "--quiet", "--spider", "https://vault:8200/v1/sys/health?standbyok=true&sealedcode=200"]
+
+      # Initial start period before health checks
+      start_period: "2s"
+
+      # Interval between health checks
+      interval: "10s"
+
+      # Timeout for each health check
+      timeout: "2s"
+
+      # Number of retries before marking the container as unhealthy
+      retries: 2
