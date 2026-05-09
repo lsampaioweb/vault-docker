@@ -38,7 +38,7 @@ services:
 
       # HTTPS configuration
       # Path to the CA certificate
-      - "VAULT_CACERT=/vault/certificates/ca.lan.homelab.crt"
+      - "VAULT_CACERT=/vault/certificates/root-ca.lan.home.crt"
       # Address of the Vault server
       - "VAULT_ADDR=https://vault:8200"
 
